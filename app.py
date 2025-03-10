@@ -96,22 +96,56 @@ def get_earnings_transcript(ticker, year, quarter):
     return f"Error fetching transcript: {response.status_code}"
 
 def analyze_transcript(company_name, transcript, search_query):
-    """Analyze transcript using OpenAI."""
-    base_prompt = f"""Analyze this {company_name} earnings call excerpt focusing on {search_query}.
-    Provide a concise analysis with key points and relevant quotes if available.
-   
-    Transcript: {transcript[:40000]}"""
+    try:
+        if not transcript or not isinstance(transcript, str):
+            return "Error: Invalid or empty transcript"
+            
+        cleaned_transcript = transcript.strip()
+        if not cleaned_transcript:
+            return "Error: Empty transcript"
+            
+        max_tokens = 16000 if search_query == "General Overview" else 16000
+        
+        # Enhanced prompt for specific analysis
+        base_prompt = f"""Analyze this {company_name} earnings call transcript specifically focusing on {search_query}.
 
-    response = client.chat.completions.create(
-        model="gpt-4o",  # Fixed model name
-        messages=[
-            {"role": "system", "content": "You are a concise financial analyst. Provide brief bullet points."},
-            {"role": "user", "content": base_prompt}
-        ],
-        max_tokens=16000,
-        temperature=0
-    )
-    return response.choices[0].message.content
+        Requirements:
+        1. Extract and analyze ONLY information related to {search_query}
+        2. Include specific numbers, metrics, and direct quotes where relevant
+        3. Highlight key strategic decisions and future plans
+        4. Compare with previous quarters if mentioned
+        5. Focus on concrete details rather than general statements
+
+        Format your response as:
+        • Key Findings (with specific metrics)
+        • Notable Quotes
+        • Strategic Implications for Flex as, the company is a customer for Flex
+        
+        Transcript: {cleaned_transcript[:50000]}"""
+
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You are a specialized financial analyst focusing on technology sector earnings. Provide detailed, data-driven analysis with specific metrics and quotes. Avoid generic statements. If certain information is not available in the transcript, explicitly state that."},
+                    {"role": "user", "content": base_prompt}
+                ],
+                max_tokens=max_tokens,
+                temperature=0
+            )
+            
+            if not response or not hasattr(response, 'choices') or not response.choices:
+                return "Error: Invalid response from OpenAI"
+                
+            return response.choices[0].message.content
+            
+        except openai.AuthenticationError as auth_error:
+            return f"OpenAI Authentication Error: {str(auth_error)}"
+        except openai.APIError as api_error:
+            return f"OpenAI API Error: {str(api_error)}"
+            
+    except Exception as e:
+        return f"Error analyzing transcript: {str(e)}"
 
 # Streamlit UI
 st.title("Earnings Transcript Analyzer")
