@@ -119,7 +119,7 @@ def analyze_transcript(company_name, transcript, search_query):
         Format your response as:
         • Key Findings (with specific metrics)
         • Notable Quotes
-        • Strategic Implications for Flex as, the company is a customer for Flex
+        • Strategic Implications
         
         Transcript: {cleaned_transcript[:50000]}"""
 
@@ -161,10 +161,6 @@ selected_companies = st.multiselect(
 # Search query input
 search_options = [
     "General Overview",
-    "Capex Trends",
-    "Deepseek Analysis",
-    "AI Initiatives",
-    "Financial Metrics",
     "Custom Query"
 ]
 search_type = st.selectbox("What would you like to analyze?", search_options)
