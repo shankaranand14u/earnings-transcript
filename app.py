@@ -162,11 +162,10 @@ def get_executive_summary(summaries, search_query):
         
         Format as bullet points with specific metrics and examples."""
     else:
-        prompt = f"""Create a focused executive summary specifically about {search_query} across these technology companies. Focus on:
-        1. Common patterns and trends related to {search_query}
-        2. Key differences in how companies approach {search_query}
-        3. Notable metrics and data points about {search_query}
-        4. Future plans and strategies related to {search_query}
+        prompt = f"""Create a focused executive summary specifically about {search_query} across these technology companies. Be as conscise as possible. Focus on:
+        1. Common patterns and trends related to {search_query} and provide data points, quotes and examples wherever available 
+        2. Key differences in how companies approach {search_query} and provide data points, quotes and examples wherever available
+        4. Future plans and strategies related to {search_query} and provide data points, quotes and examples wherever available
         
         Format as bullet points with specific examples and metrics."""
 
@@ -204,7 +203,7 @@ search_type = st.selectbox("What would you like to analyze?", search_options)
 
 # Show custom query input if selected
 if search_type == "Custom Query":
-    search_query = st.text_input("Enter your custom search query:")
+    search_query = st.text_input("Enter topic to search across common patterns, key differences, future plans:")
 else:
     search_query = search_type
 
