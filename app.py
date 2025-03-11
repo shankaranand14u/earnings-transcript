@@ -92,7 +92,11 @@ def get_earnings_transcript(ticker, year, quarter):
     api_url = f'https://api.api-ninjas.com/v1/earningstranscript?ticker={ticker}&year={year}&quarter={quarter}'
     response = requests.get(api_url, headers={'X-Api-Key': NINJA_API_KEY})
     if response.status_code == 200:
-        return response.json().get('transcript', 'No transcript available.')
+        data = response.json()
+        # Handle both list and dictionary responses
+        if isinstance(data, list):
+            return data[0].get('transcript', 'No transcript available.') if data else 'No transcript available.'
+        return data.get('transcript', 'No transcript available.')
     return f"Error fetching transcript: {response.status_code}"
 
 def analyze_transcript(company_name, transcript, search_query):
@@ -117,9 +121,7 @@ def analyze_transcript(company_name, transcript, search_query):
         5. Focus on concrete details rather than general statements
 
         Format your response as:
-        • Key Findings (with specific metrics)
-        • Notable Quotes
-        • Strategic Implications
+        • Key Findings (with specific metrics, quotes and examples wherever available)
         
         Transcript: {cleaned_transcript[:50000]}"""
 
@@ -147,6 +149,41 @@ def analyze_transcript(company_name, transcript, search_query):
     except Exception as e:
         return f"Error analyzing transcript: {str(e)}"
 
+def get_executive_summary(summaries, search_query):
+    """Generate a context-aware executive summary based on search query"""
+    combined_text = "\n\n".join([f"{company}: {summary}" for company, summary in summaries.items()])
+    
+    if search_query == "General Overview":
+        prompt = """Create a comprehensive executive summary of these technology companies' earnings. Focus on:
+        1. Key market trends across companies
+        2. Common themes in AI and technology initiatives
+        3. Overall market sentiment
+        4. Notable concerns or challenges
+        
+        Format as bullet points with specific metrics and examples."""
+    else:
+        prompt = f"""Create a focused executive summary specifically about {search_query} across these technology companies. Focus on:
+        1. Common patterns and trends related to {search_query}
+        2. Key differences in how companies approach {search_query}
+        3. Notable metrics and data points about {search_query}
+        4. Future plans and strategies related to {search_query}
+        
+        Format as bullet points with specific examples and metrics."""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a senior financial analyst. Provide concise, data-driven insights focusing specifically on the requested analysis topic."},
+                {"role": "user", "content": f"{prompt}\n\nAnalyses:\n{combined_text}"}
+            ],
+            max_tokens=1000,
+            temperature=0
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"Error generating executive summary: {str(e)}"
+
 # Streamlit UI
 st.title("Earnings Transcript Analyzer")
 
@@ -173,10 +210,10 @@ else:
 
 if st.button("Analyze"):
     last_calendar_quarter, last_calendar_year = get_last_reported_quarter()
+    company_summaries = {}
     
+    # Collect all analyses first
     for selected_company in selected_companies:
-        st.subheader(f"Analysis for {companies[selected_company]}")
-        
         with st.spinner(f"Analyzing {companies[selected_company]}..."):
             fiscal_quarter, fiscal_year = get_fiscal_quarter_and_year(
                 selected_company, 
@@ -187,8 +224,21 @@ if st.button("Analyze"):
             transcript = get_earnings_transcript(selected_company, fiscal_year, fiscal_quarter)
             if "Error" not in transcript:
                 summary = analyze_transcript(companies[selected_company], transcript, search_query)
-                st.write(summary)
-                st.divider()  # Add a visual separator between companies
+                company_summaries[companies[selected_company]] = summary
             else:
-                st.error(transcript)
+                company_summaries[companies[selected_company]] = transcript
+    
+    # Display context-aware executive summary first
+    if company_summaries:
+        st.header("Executive Summary")
+        exec_summary = get_executive_summary(company_summaries, search_query)
+        st.write(exec_summary)
+        st.divider()
+    
+    # Display individual company analyses
+    for selected_company in selected_companies:
+        st.subheader(f"Analysis for {companies[selected_company]}")
+        if companies[selected_company] in company_summaries:
+            st.write(company_summaries[companies[selected_company]])
+        st.divider()
 
